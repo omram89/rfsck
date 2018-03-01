@@ -119,4 +119,3 @@ int rfsck_write(uint64_t offset, uint32_t size, void* buf);
 int rfsck_replay(int flush);
 int redo_mark_done(int mark_done);
 int rfsck_flush();
-int rfsck_get_sb();

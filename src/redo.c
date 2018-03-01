@@ -9,16 +9,6 @@
 
 };*/
 
-int rfsck_get_sb() {
-
-    //TODO this function is specific to each file system
-    // Programmer may need to code this function so as to 
-    // fetch the super block of the file system tested.
- 
-   return 0;
-
-}
-
 uint32_t hash(char *str)
     {
         uint32_t hash = 5381;
@@ -61,7 +51,7 @@ int rfsck_txn_begin() {
 
     redo_data->txn_csum = TXN_CHKSM_CNST ^ tag_crc;
 
-    printf("TXN_BEGIN: %ld - %ld - %ld - %ld\n", redo_data->num_keys, redo_data->txn_id, redo_data->keys_in_block, redo_data->txn_csum);    
+    //printf("TXN_BEGIN: %ld - %ld - %ld - %ld\n", redo_data->num_keys, redo_data->txn_id, redo_data->keys_in_block, redo_data->txn_csum);    
     //retval = write_info(redo_data->redo_fd, redo_data->log_offset, size, buf, 1);
 
     if(retval)
@@ -110,7 +100,7 @@ int rfsck_txn_end() {
  
     //retval = write_info(redo_data->redo_fd, redo_data->log_offset, size, buf, 1);
 
-    printf("TXN_END: %ld - %ld - %ld - %ld\n", redo_data->num_keys, redo_data->txn_id, redo_data->keys_in_block, redo_data->txn_csum);
+    //printf("TXN_END: %ld - %ld - %ld - %ld\n", redo_data->num_keys, redo_data->txn_id, redo_data->keys_in_block, redo_data->txn_csum);
 
     
     redo_data->keys_in_block++;
@@ -206,7 +196,6 @@ int redo_setup(int dev_fd, int redo_fd) {
     
     
     //TODO set superblock (determine the offset and size of superblock for various file systems)
-    // rfsck_get_sb();
     
     redo_data->hdr.key_offset = redo_data->log_offset;
     redo_data->redo_block_offset = redo_data->log_offset;
@@ -289,7 +278,7 @@ int rfsck_write(uint64_t offset, uint32_t size, void* buf) {
     uint32_t tag_crc = ext2fs_crc32c_le(~0, (unsigned char *) &redo_data->keyb->tags[redo_data->keys_in_block], sizeof(struct redo_block_tag));
     redo_data->txn_csum = redo_data->txn_csum ^ tag_crc;
 
-    printf("Redo tag[%ld - %ld]: checksum = %ld\n", redo_data->num_keys, redo_data->keys_in_block, redo_data->txn_csum);
+    //printf("Redo tag[%ld - %ld]: checksum = %ld\n", redo_data->num_keys, redo_data->keys_in_block, redo_data->txn_csum);
 
     retval = write_info(redo_data->redo_fd, redo_data->log_offset, size, buf, 1);
 
@@ -426,34 +415,34 @@ int rfsck_replay(int flush) {
     char *buf = 0;
     uint32_t txn_id = 0;
     uint32_t txn_csum, txn_end_csum, temp_csum;
-    //struct redo_block txn_block;
-    //redo_data->blocks = calloc(hdr->num_keys, REDO_LOG_BLOCK_SIZE);
-    //memset(redo_data->blocks, 0, hdr->num_keys * REDO_LOG_BLOCK_SIZE);
     struct replay_block *replay_blocks;
+    uint64_t *keys_offset;
+    int is_replayed = 0;
+
+    keys_offset = calloc(hdr->num_keys + 1, sizeof(uint64_t));
+    memset(keys_offset, 0, (hdr->num_keys + 1) * sizeof(uint64_t));
+
     replay_blocks = calloc(hdr->num_keys, REDO_LOG_BLOCK_SIZE);
     memset(replay_blocks, 0, hdr->num_keys * REDO_LOG_BLOCK_SIZE);
     //printf("Size of replay_blocks: %ld\n", hdr->num_keys * REDO_LOG_BLOCK_SIZE);
-rerun:
+//rerun:
     keyb_count = 0;
     log_offset = hdr->key_offset;
-    //if(count == 0) {
     redo_data->txn_id = 0;
     redo_data->txn_csum = 0;
     redo_data->txn_begin_blk = 0;
     redo_data->txn_begin_idx = 0;
-    //}
     replay_log_offset += REDO_LOG_BLOCK_SIZE;
     while(keyb_count <= hdr->num_keys) {
         //printf("log offset: %ld\n", log_offset);
         retval = pread64(redo_data->redo_fd, keyb, REDO_LOG_BLOCK_SIZE, log_offset);
-//        retval = pread64(redo_data->redo_fd, redo_data->blocks[keyb_count], 
-//                                                REDO_LOG_BLOCK_SIZE, log_offset);
-
         if(retval < 0) {
             printf("Unable to read key block\n");
             goto free_end;
-            //return retval;
         }
+
+        keys_offset[keyb_count] = log_offset;
+        printf("Key Offsets: %ld - %ld\n", keyb_count, log_offset);
         //printf("keyb val: magic = %ld, crc = %ld, size1 = %ld\n",keyb->magic, keyb->crc, keyb->tags[0].size);
         //memcpy(&redo_data->blocks[keyb_count], keyb, REDO_LOG_BLOCK_SIZE);
         //memcpy(&replay_blocks[keyb_count], keyb, REDO_LOG_BLOCK_SIZE);
@@ -473,36 +462,11 @@ rerun:
         //redo_data->blocks[keyb_count] = keyb;
         log_offset += REDO_LOG_BLOCK_SIZE;
 
-        /*if(verify_checksum) {
-            if(hash(REDO_BLOCK_MAGIC_NUMBER) != keyb->magic) {
-                printf("Redo block mismatch\n\n");
-                goto free_end;
-            }
-            //TODO verify checksum of redo block
- 
-            block_crc = keyb->crc;
-            keyb->crc = 0;
-            keyb->crc = ext2fs_crc32c_le(~0, (unsigned char *)keyb, REDO_LOG_BLOCK_SIZE);
-
-            if(block_crc != keyb->crc) {
-                printf("REDO: Redo block checksum mismatch\n\n");
-                goto free_end;
-            }
-        }*/
 
         //verify the following parameters of each transaction
         //    - checksum in txn_end index
         //    - txn replayed or not
-        //if(redo_data->txn_id == 0) {
-        /*if(redo_data->txn_begin_blk == 0) {
-            redo_data->txn_id  = 0;
-            redo_data->txn_csum = 0;
-            redo_data->txn_begin_blk = 0;
-            redo_data->txn_begin_idx = 0;
-        }*/
-        //int temp_count = 0; 
         count = 0;
-        //replay_log_offset = log_offset;
         for(blk_tag = keyb->tags; 
                    blk_tag != NULL && count < keys_per_block;
                           blk_tag++, count++) {
@@ -512,12 +476,17 @@ rerun:
 
             if(blk_tag->size == 0 && blk_tag->blk_crc > 0) {
                 if(redo_data->txn_id == 0) {
-                    //TODO this is txn_begin index record
+                    // this is txn_begin index record
                     redo_data->txn_id  = blk_tag->blk_crc;
-                    //redo_data->txn_csum = blk_tag->offset;
+                    if(blk_tag->offset == TXN_REPLAYED_CNST) {
+                        is_replayed = 1;
+                        printf("Transaction %ld already replayed, skipping this\n", blk_tag->blk_crc);
+                        continue;
+                    } else {
+                        is_replayed = 0;
+                    }
                     redo_data->txn_begin_blk = keyb_count;
                     redo_data->txn_begin_idx = count;
-                    //replay_log_offset = log_offset;
 
                     temp_csum= ext2fs_crc32c_le(~0, (unsigned char *) blk_tag, sizeof(struct redo_block_tag));
                     redo_data->txn_csum = TXN_CHKSM_CNST ^ temp_csum;
@@ -525,13 +494,16 @@ rerun:
                     printf("Replay:: TXN_BEGIN: %ld - %ld - %ld - %ld\n", keyb_count,
                                          count, redo_data->txn_id, redo_data->txn_csum);
                 } else {
-                    //TODO this is txn_end index record
+                    // this is txn_end index record
+                    if(is_replayed) {
+                        redo_data->txn_id  = 0;
+                        continue;
+                    }
                     txn_end_csum = blk_tag->offset;
                     blk_tag->offset = 0;
                     temp_csum = ext2fs_crc32c_le(~0, (unsigned char *) blk_tag, 
                                                        sizeof(struct redo_block_tag));
 
-                    //txn_csum = txn_csum ^ temp_csum;
                     redo_data->txn_csum = redo_data->txn_csum ^ temp_csum;
                     printf("Replay:: TXN_END: %ld - %ld - %ld - %ld\n", keyb_count,
                                          count, redo_data->txn_id, redo_data->txn_csum); 
@@ -539,16 +511,14 @@ rerun:
                         printf("Checksum mismatch for Transaction (tid=%ld)\n", redo_data->txn_id);
                     }
 
-                    //TODO replay txn records
+                    // Replay txn records
                     int i = 0, j = 0, txn_replayed = 0;
-                    //j = redo_data->txn_begin_idx + 1;
                     for(i = redo_data->txn_begin_blk; i <= keyb_count && txn_replayed == 0; i++) {
 
                         if(i == redo_data->txn_begin_blk)
                             j = redo_data->txn_begin_idx + 1;
                         else
                             j = 0;
-                        //j = redo_data->txn_begin_idx + 1;
 
                         while(j < keys_per_block) {
                             if(i == keyb_count && j == count) {
@@ -556,16 +526,10 @@ rerun:
                                 break;
                             }
 
-                            //TODO add logic to verify redo data block's checksum
- 
                             // Replay redo data blocks
 
-                            //buf = malloc(blk_tag->size);
-                            //if(buf == NULL)
-                                //buf = malloc(redo_data->blocks[i].tags[j].size);
                             buf = malloc(replay_blocks[i].tags[j].size);
-                            //retval = pread64(redo_data->redo_fd, buf, 
-                            //                  redo_data->blocks[i].tags[j].size, replay_log_offset);
+
                             retval = pread64(redo_data->redo_fd, buf, 
                                               replay_blocks[i].tags[j].size,
                                               replay_log_offset);
@@ -576,7 +540,7 @@ rerun:
 
                                 goto free_end;
                             }
-                            printf("Replay tag[%ld-%ld]:doffset = %ld, offset = %ld, size = %ld\n", i, j, replay_log_offset, replay_blocks[i].tags[j].offset, replay_blocks[i].tags[j].size);
+                            //printf("Replay tag[%ld-%ld]:doffset = %ld, offset = %ld, size = %ld\n", i, j, replay_log_offset, replay_blocks[i].tags[j].offset, replay_blocks[i].tags[j].size);
                             retval = write_info(redo_data->dev_fd, 
                                             replay_blocks[i].tags[j].offset, 
                                             replay_blocks[i].tags[j].size, buf, 0); 
@@ -594,8 +558,16 @@ rerun:
                         if(j == keys_per_block)
                             replay_log_offset += REDO_LOG_BLOCK_SIZE;
                     }
-                      
-                    //TODO after replay reset txn_id, txn_csum, txn_begin_blk, txn_begin_idx
+                     
+                    // Mark txn as replayed
+                    replay_blocks[redo_data->txn_begin_blk].tags[redo_data->txn_begin_idx].offset = TXN_REPLAYED_CNST;
+
+                    retval = write_info(redo_data->redo_fd, 
+                                            keys_offset[redo_data->txn_begin_blk], 
+                                            REDO_LOG_BLOCK_SIZE, 
+                                            (void *) (replay_blocks + redo_data->txn_begin_blk), 0);
+                     
+                    // After replay reset txn_id, txn_csum, txn_begin_blk, txn_begin_idx
                     redo_data->txn_id  = 0;
                     redo_data->txn_csum = 0;
                     redo_data->txn_begin_blk = 0;
@@ -603,93 +575,18 @@ rerun:
                 }
 
             } else {
-                //TODO Calculate checksum of regular index blocks
+                // Calculate checksum of regular index blocks
+
+                if(is_replayed)
+                    continue;
                 temp_csum = ext2fs_crc32c_le(~0, (unsigned char *) blk_tag, 
                                                  sizeof(struct redo_block_tag)); 
-                //txn_csum = txn_csum ^ temp_csum;
                 redo_data->txn_csum = redo_data->txn_csum ^ temp_csum;
-                printf("Replay:: Redo tag[%ld - %ld]: csum = %ld\n", keyb_count, count, redo_data->txn_csum);
-                //log_offset += blk_tag->size;
+                //printf("Replay:: Redo tag[%ld - %ld]: csum = %ld\n", keyb_count, count, redo_data->txn_csum);
             }
         }
-        /*if(count == keys_per_block) {
-            printf();
-            log_offset += REDO_LOG_BLOCK_SIZE;
-        }*/
     keyb_count++;    
     }
-  
-    /*while(keyb_count <= hdr->num_keys) {
- 
-        retval = pread64(redo_data->redo_fd, keyb, REDO_LOG_BLOCK_SIZE, log_offset);
-        if(retval < 0) {
-            printf("Unable to read key block\n");
-            goto free_end;
-            //return retval;
-        }
-
-        log_offset += REDO_LOG_BLOCK_SIZE;
-
-        if(verify_checksum) {
-            if(hash(REDO_BLOCK_MAGIC_NUMBER) != keyb->magic) {
-                printf("Redo block mismatch\n\n");
-                goto free_end;
-            }
-            //TODO verify checksum of redo block
- 
-            block_crc = keyb->crc;
-            keyb->crc = 0;
-            keyb->crc = ext2fs_crc32c_le(~0, (unsigned char *)keyb, REDO_LOG_BLOCK_SIZE);
-
-            if(block_crc != keyb->crc) {
-                printf("REDO: Redo block checksum mismatch\n\n");
-                goto free_end;
-            }
-        }
-
-        count = 0;
-        for(blk_tag = keyb->tags; 
-                   blk_tag != NULL && blk_tag->size > 0 && count < keys_per_block;
-                          blk_tag++, count++) {
-            buf = malloc(blk_tag->size);
-            retval = pread64(redo_data->redo_fd, buf, blk_tag->size, log_offset);
-
-            if(retval < 0) {
-                printf("Unable to read data block\n");
-                free(buf);
-                goto free_end;
-            }
-            log_offset += blk_tag->size;
-       
-            if(verify_checksum) {
-              //TODO verify checksum of data block
-              //printf("TODO verify checksum");
-
-                data_crc = ext2fs_crc32c_le(~0, (unsigned char *)buf, blk_tag->size);
-
-                if(data_crc != blk_tag->blk_crc) {
-                    printf("REDO: Data block checksum mismatch");
-                    free(buf);
-                    goto free_end;
-                }
-            } else {
-                retval = write_info(redo_data->dev_fd, blk_tag->offset, blk_tag->size, buf, 0); 
-                if(retval) {
-                    free(buf);
-                    goto free_end;
-                }
-            }
-
-            free(buf);
-
-        }
-    keyb_count++;    
-    }*/
-
-/*    if(verify_checksum) {
-        verify_checksum = 0;
-        goto rerun;
-    }*/
 
     if(flush)
         retval = fsync(redo_data->dev_fd);
