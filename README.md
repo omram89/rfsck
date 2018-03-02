@@ -2,7 +2,7 @@ This is repository for "rfsck-lib", a generic logging library.
 
 The repository contains two folders:
 
-  1. "src" contains the source files for rfsck-lib. 
+  1. "rfsck-lib" contains the source files for rfsck-lib. 
       There is a README available in this folder with steps to
       show how to integerate the tool with your program
       
