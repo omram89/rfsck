@@ -1,6 +1,6 @@
-This is repository for "rfsck-lib", a generic logging library.
+This is the repository for "Towards Robust File System Checkers" (FAST'18).
 
-The repository contains two folders:
+The repository contains the following:
 
   1. "rfsck-lib" contains the source files for rfsck-lib. 
       There is a README available in this folder with steps to
