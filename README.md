@@ -1,4 +1,5 @@
-This is the repository for "Towards Robust File System Checkers" (FAST'18).
+This is the repository for the "Towards Robust File System Checkers" project
+published in the proceedings of the 16th USENIX Conference on File and Storage Technologies (FAST'18).
 
 The repository contains the following:
 
@@ -26,7 +27,27 @@ The repository contains the following:
   4.  "e2fsck-patch" is a simple fix to make e2fsck robust. To achieve this,
       we synchronize the updates to the undo log.
 
+  5.  "rfsck-test" is a  fault injection engine to analyze the fault resilience of file system checkers.
 
-For further information, please refer to our paper https://www.usenix.org/conference/fast18/presentation/gatla 
 
-Please email me at omram@nmsu.edu regarding any issues with the code.
+For further information about the design, please refer to our paper https://www.usenix.org/conference/fast18/presentation/gatla 
+
+
+BibTex:
+@inproceedings{Gatla:2018:TRF:3189759.3189770,
+ author = {Gatla, Om Rameshwar and Hameed, Muhammad and Zheng, Mai and Dubeyko, Viacheslav and Manzanares, Adam and Blagojevic, Filip and Guyot, Cyril and Mateescu, Robert},
+ title = {{Towards Robust File System Checkers}},
+ booktitle = {{Proceedings of the 16th USENIX Conference on File and Storage Technologies}},
+ series = {FAST'18},
+ year = {2018},
+ isbn = {978-1-931971-42-3},
+ location = {Oakland, CA, USA},
+ pages = {105--121},
+ numpages = {17},
+ url = {http://dl.acm.org/citation.cfm?id=3189759.3189770},
+ acmid = {3189770},
+ publisher = {USENIX Association},
+ address = {Berkeley, CA, USA},
+} 
+
+Contact: Om Rameshwar Gatla, omram@nmsu.edu
