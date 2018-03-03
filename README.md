@@ -1,7 +1,7 @@
 This is the repository for the "Towards Robust File System Checkers" project
 published in the proceedings of the 16th USENIX Conference on File and Storage Technologies (FAST'18).
 
-The repository contains the following:
+The repository contains the prototypes of the following:
 
   1. "rfsck-lib" contains the source files for rfsck-lib. 
       There is a README available in this folder with steps to
